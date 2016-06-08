@@ -547,6 +547,74 @@ public class ControllerResource extends ApplicationResource {
         return clusterContext(generateCreatedResponse(URI.create(entity.getComponent().getUri()), entity)).build();
     }
 
+        /**
+     * SideLoad an external NAR Extension
+     *
+     * Alternatively, we could have performed a PUT request. However, PUT
+     * requests are supposed to be idempotent and this endpoint is certainly
+     * not.
+     *
+     * @param httpServletRequest
+     *            request
+     * @param revisionEntity
+     *            The revision is used to verify the client is working with the
+     *            latest version of the flow.
+     * @return A processGroupEntity.
+     */
+    @GET
+    @Consumes(MediaType.WILDCARD)
+    @Produces(MediaType.APPLICATION_JSON)
+    @Path("sideload")
+    // TODO - @PreAuthorize("hasRole('ROLE_DFM')")
+    @ApiOperation(value = "SideLoad an external NAR Extension", notes = "This operation returns a boolen statu that is representative of execution of SildeLoading Process ", response = Boolean.class, authorizations = {
+            @Authorization(value = "Administrator", type = "ROLE_ADMIN") })
+    @ApiResponses(value = {
+            @ApiResponse(code = 400, message = "NiFi was unable to complete the request because it was invalid. The request should not be retried without modification."),
+            @ApiResponse(code = 401, message = "Client could not be authenticated."),
+            @ApiResponse(code = 403, message = "Client is not authorized to make this request."),
+            @ApiResponse(code = 409, message = "The request was valid but NiFi was not in the appropriate state to process it. Retrying the same request later may be successful.") })
+    public Response sideLoad(@Context HttpServletRequest httpServletRequest,
+            @ApiParam(value = "NarFile Location") @QueryParam("narURI") String narURI,
+            @ApiParam(value = "GroupId") @QueryParam("groupId") String groupId,
+            @ApiParam(value = "ArtifactId") @QueryParam("artifactId") String artifactId,
+            @ApiParam(value = "Version") @QueryParam("version") String version) {
+        boolean wellformedGAV = true;
+        URI narUri = null;
+        // ensure at-least a resource URI has been defined
+        if (!(StringUtils.isNotBlank(groupId) && StringUtils.isNotBlank(artifactId)
+                && StringUtils.isNotBlank(version))) {
+            wellformedGAV = false;
+            // ensure at-least a resource URI has been defined
+            if (!StringUtils.isNotBlank(narURI)) {
+                throw new IllegalArgumentException(
+                        "Either all fields or GAV or at least resource URI must be specified.");
+            } else {
+                // URI needs to be validated at 1st place.
+                narUri = URI.create(narURI);
+            }
+        }
+
+        // replicate if cluster manager
+        if (properties.isClusterManager()) {
+            return clusterManager
+                    .applyRequest(HttpMethod.GET, getAbsolutePath(), getRequestParameters(true), getHeaders())
+                    .getResponse();
+        }
+
+        // handle expects request (usually from the cluster manager)
+        final String expects = httpServletRequest.getHeader(WebClusterManager.NCM_EXPECTS_HTTP_HEADER);
+        if (expects != null) {
+            return generateContinueResponse().build();
+        }
+
+        // sideload
+        final NarExtensionSpec spec = new NarExtensionSpec(groupId, artifactId, version, NarExtensionSpec.NAR_PACKAGING,
+                narUri);
+        serviceFacade.sideLoad(spec,
+                (ExtensionMapping) httpServletRequest.getServletContext().getAttribute("nifi-extension-mapping"));
+        return clusterContext(generateOkResponse("Successfully Loaded: " + spec)).build();
+    }
+
     // setters
     public void setServiceFacade(NiFiServiceFacade serviceFacade) {
         this.serviceFacade = serviceFacade;
