@@ -24,6 +24,7 @@ import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
+import java.net.URI;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -50,8 +51,11 @@ import org.apache.nifi.controller.UninheritableFlowException;
 import org.apache.nifi.controller.serialization.FlowSerializationException;
 import org.apache.nifi.controller.serialization.FlowSynchronizationException;
 import org.apache.nifi.lifecycle.LifeCycleStartException;
+import org.apache.nifi.nar.ExtensionManager;
 import org.apache.nifi.nar.ExtensionMapping;
 import org.apache.nifi.nar.NarClassLoaders;
+import org.apache.nifi.nar.NarUnpacker;
+import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.services.FlowService;
 import org.apache.nifi.ui.extension.UiExtension;
 import org.apache.nifi.ui.extension.UiExtensionMapping;
@@ -719,6 +723,11 @@ public class JettyServer implements NiFiServer {
             if (webDocsContext != null) {
                 final ServletContext webDocsServletContext = webDocsContext.getServletHandler().getServletContext();
                 webDocsServletContext.setAttribute("nifi-extension-mapping", extensionMapping);
+                // give the web api the extension mapping
+                // TODO: Shall we give some SpringBean access to
+                // webDocServletContext instead?
+                final ServletContext webApiServletContext = webApiContext.getServletHandler().getServletContext();
+                webApiServletContext.setAttribute("nifi-extension-mapping", extensionMapping);
             }
 
             // if this nifi is a node in a cluster, start the flow service and load the flow - the
@@ -820,6 +829,18 @@ public class JettyServer implements NiFiServer {
     @Override
     public void setExtensionMapping(ExtensionMapping extensionMapping) {
         this.extensionMapping = extensionMapping;
+    }
+
+    public void sideLoadNar(final URI narLocation) {
+        try {
+            final File sideLoadableNarFile = new File(narLocation);
+            NarClassLoaders.sideLoad(NarUnpacker.unpackSideLoadedNar(props, sideLoadableNarFile, extensionMapping));
+            ExtensionManager.discoverSideloadeExtensions();
+        } catch (ClassNotFoundException | IOException e) {
+            logger.error("Error SideLoading Nar file", e);
+            throw new ProcessException(e);
+        }
+
     }
 
     @Override

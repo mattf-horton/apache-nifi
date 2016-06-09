@@ -93,6 +93,26 @@ public class ExtensionManager {
         }
     }
 
+    public static void discoverSideloadeExtensions() {
+        // get the current context class loader
+        ClassLoader currentContextClassLoader = Thread.currentThread().getContextClassLoader();
+
+        // consider each nar class loader
+        for (final ClassLoader ncl : NarClassLoaders.getSideLoadedExtensionClassLoaders()) {
+
+            // Must set the context class loader to the nar classloader itself
+            // so that static initialization techniques that depend on the
+            // context class loader will work properly
+            Thread.currentThread().setContextClassLoader(ncl);
+            loadExtensions(ncl);
+        }
+
+        // restore the current context class loader if appropriate
+        if (currentContextClassLoader != null) {
+            Thread.currentThread().setContextClassLoader(currentContextClassLoader);
+        }
+    }
+
     /**
      * Loads extensions from the specified class loader.
      *

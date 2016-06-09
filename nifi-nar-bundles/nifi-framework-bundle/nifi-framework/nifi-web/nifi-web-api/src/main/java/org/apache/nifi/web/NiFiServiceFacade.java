@@ -21,6 +21,8 @@ import org.apache.nifi.controller.ScheduledState;
 import org.apache.nifi.controller.repository.claim.ContentDirection;
 import org.apache.nifi.controller.service.ControllerServiceState;
 import org.apache.nifi.groups.ProcessGroup;
+import org.apache.nifi.nar.ExtensionMapping;
+import org.apache.nifi.nar.ext.NarExtensionSpec;
 import org.apache.nifi.web.api.dto.BulletinBoardDTO;
 import org.apache.nifi.web.api.dto.BulletinQueryDTO;
 import org.apache.nifi.web.api.dto.ClusterDTO;
@@ -1509,4 +1511,11 @@ public interface NiFiServiceFacade {
      * @return the resources
      */
     List<ResourceDTO> getResources();
+
+    /**
+     * @param spec
+     * @param extensionMapping
+     * @return
+     */
+    ExtensionMapping sideLoad(NarExtensionSpec spec, ExtensionMapping extensionMapping);
 }

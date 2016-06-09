@@ -69,6 +69,12 @@ import org.apache.nifi.groups.RemoteProcessGroup;
 import org.apache.nifi.history.History;
 import org.apache.nifi.history.HistoryQuery;
 import org.apache.nifi.history.PreviousValue;
+import org.apache.nifi.nar.ExtensionManager;
+import org.apache.nifi.nar.ExtensionMapping;
+import org.apache.nifi.nar.NarClassLoaders;
+import org.apache.nifi.nar.NarUnpacker;
+import org.apache.nifi.nar.ext.NarExtensionSpec;
+import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.remote.RootGroupPort;
 import org.apache.nifi.reporting.Bulletin;
 import org.apache.nifi.reporting.BulletinQuery;
@@ -193,6 +199,7 @@ import java.util.UUID;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.io.File;
 
 /**
  * Implementation of NiFiServiceFacade that performs revision checking.
@@ -2961,5 +2968,19 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
 
     public void setHeartbeatMonitor(HeartbeatMonitor heartbeatMonitor) {
         this.heartbeatMonitor = heartbeatMonitor;
+    }
+
+    @Override
+    public ExtensionMapping sideLoad(final NarExtensionSpec spec, ExtensionMapping extensionMapping) {
+        try {
+            final File sideLoadableNarFile = new File(spec.resolve());
+            NarClassLoaders
+                    .sideLoad(NarUnpacker.unpackSideLoadedNar(properties, sideLoadableNarFile, extensionMapping));
+            ExtensionManager.discoverSideloadeExtensions();
+        } catch (ClassNotFoundException | IOException e) {
+            logger.error("Error Loading Nar Extension ", e);
+            throw new ProcessException(e);
+        }
+        return extensionMapping;
     }
 }

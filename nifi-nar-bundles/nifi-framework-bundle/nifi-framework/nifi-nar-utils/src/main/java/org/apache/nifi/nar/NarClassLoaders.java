@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BinaryOperator;
 import java.util.jar.Attributes;
 import java.util.jar.Manifest;
 import org.apache.nifi.util.FileUtils;
@@ -48,7 +49,9 @@ public final class NarClassLoaders {
     private static final Logger logger = LoggerFactory.getLogger(NarClassLoaders.class);
     private static final AtomicBoolean initialized = new AtomicBoolean(false);
     private static final AtomicReference<Map<String, ClassLoader>> extensionClassLoaders = new AtomicReference<>();
+    private static final AtomicReference<Map<String, ClassLoader>> sideLoadedExtensionClassLoaders = new AtomicReference<>();
     private static final AtomicReference<ClassLoader> frameworkClassLoader = new AtomicReference<>();
+    private static final AtomicReference<Map<String, ClassLoader>> narIdClassLoaders = new AtomicReference<>();
 
     /**
      * Loads the extensions class loaders from the specified working directory.
@@ -170,6 +173,46 @@ public final class NarClassLoaders {
 
         // set the extensions class loader map
         extensionClassLoaders.set(new LinkedHashMap<>(extensionDirectoryClassLoaderLookup));
+
+        // set nar classloaders for future reference
+        narIdClassLoaders.set(new LinkedHashMap<>(narIdClassLoaderLookup));
+    }
+
+    public static boolean sideLoad(final File unpackedNar) throws IOException, ClassNotFoundException {
+        final NarDetails narDetail = getNarDetails(unpackedNar);
+     // ensure the nar contained an identifier
+        if (narDetail.getNarId() == null) {
+            logger.warn("No NAR Id found. Skipping: " + unpackedNar.getAbsolutePath());
+            return false;
+        }
+        final String narDependencies = narDetail.getNarDependencyId();
+        Map<String, ClassLoader> narIdClassLoaderLookup = narIdClassLoaders.get();
+        // see if this class loader is eligible for loading
+        ClassLoader narClassLoader = null;
+        if (narDependencies == null) {
+            narClassLoader = createNarClassLoader(narDetail.getNarWorkingDirectory(),
+                    narIdClassLoaderLookup.get(JETTY_NAR_ID));
+        } else if (narIdClassLoaderLookup.containsKey(narDetail.getNarDependencyId())) {
+            narClassLoader = createNarClassLoader(narDetail.getNarWorkingDirectory(),
+                    narIdClassLoaderLookup.get(narDetail.getNarDependencyId()));
+        }
+
+        // if we were able to create the nar class loader, store it and remove
+        // the details
+        if (narClassLoader != null) {
+            HashMap<String, ClassLoader> extetensionDirectoryClassLoaderLookup=new HashMap<>();
+            extetensionDirectoryClassLoaderLookup.put(narDetail.getNarWorkingDirectory().getCanonicalPath(), narClassLoader);
+            extensionClassLoaders.accumulateAndGet(extetensionDirectoryClassLoaderLookup,
+                    new MergeMapOperator<String, ClassLoader>());
+            if (!sideLoadedExtensionClassLoaders.compareAndSet(null, extetensionDirectoryClassLoaderLookup)) {
+            sideLoadedExtensionClassLoaders.accumulateAndGet(extetensionDirectoryClassLoaderLookup,
+                    new MergeMapOperator<String, ClassLoader>());
+            }
+            HashMap<String, ClassLoader> narIdClassLoaderMap = new HashMap<>();
+            narIdClassLoaderMap.put(narDetail.getNarId(), narClassLoader);
+            narIdClassLoaders.accumulateAndGet(narIdClassLoaderMap, new MergeMapOperator<>());
+        }
+        return true;
     }
 
     /**
@@ -255,6 +298,23 @@ public final class NarClassLoaders {
         }
 
         return new LinkedHashSet<>(extensionClassLoaders.get().values());
+    }
+
+    public static Set<ClassLoader> getSideLoadedExtensionClassLoaders() {
+        if (!initialized.get()) {
+            throw new IllegalStateException("Extensions class loaders have not been loaded.");
+        }
+
+        return new LinkedHashSet<>(sideLoadedExtensionClassLoaders.get().values());
+    }
+
+
+    private static final class MergeMapOperator<T, U> implements BinaryOperator<Map<T, U>> {
+        @Override
+        public Map<T, U> apply(Map<T, U> existing, Map<T, U> delta) {
+            existing.putAll(delta);
+            return existing;
+        }
     }
 
     private static class NarDetails {

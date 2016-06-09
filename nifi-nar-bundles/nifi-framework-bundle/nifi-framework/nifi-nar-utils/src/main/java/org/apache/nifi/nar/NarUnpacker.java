@@ -169,6 +169,50 @@ public final class NarUnpacker {
         return null;
     }
 
+    public static File unpackSideLoadedNar(final NiFiProperties props, final File sideLoadedNarFile,
+            final ExtensionMapping extensionMapping) {
+        final File extensionsWorkingDir = props.getExtensionsWorkingDirectory();
+        final File docsWorkingDir = props.getComponentDocumentationWorkingDirectory();
+
+        try {
+            File unpackedExtension = null;
+
+            // make sure the nar directories are there and accessible
+            FileUtils.ensureDirectoryExistAndCanAccess(extensionsWorkingDir);
+            FileUtils.ensureDirectoryExistAndCanAccess(docsWorkingDir);
+
+            logger.debug("Expanding NAR file: " + sideLoadedNarFile.getAbsolutePath());
+
+            // get the manifest for this nar
+            try (final JarFile nar = new JarFile(sideLoadedNarFile)) {
+                final Manifest manifest = nar.getManifest();
+
+                // lookup the nar id
+                final Attributes attributes = manifest.getMainAttributes();
+                final String narId = attributes.getValue("Nar-Id");
+
+                // determine if this is the framework
+                if (NarClassLoaders.FRAMEWORK_NAR_ID.equals(narId)) {
+                    throw new IllegalStateException("SideLoading mechanism is not suppossed to replace Framework Nar");
+                } else {
+                    unpackedExtension = unpackNar(sideLoadedNarFile, extensionsWorkingDir);
+                }
+            }
+
+            mapExtensions(unpackedExtension, docsWorkingDir, extensionMapping);
+            return unpackedExtension;
+        } catch (IOException e) {
+            logger.warn("Unable to load NAR library bundles due to " + e
+                    + " Will proceed without loading any further Nar bundles");
+            if (logger.isDebugEnabled()) {
+                logger.warn("", e);
+            }
+        }
+
+        return null;
+
+    }
+
     private static void mapExtensions(final File workingDirectory, final File docsDirectory,
             final ExtensionMapping mapping) throws IOException {
         final File[] directoryContents = workingDirectory.listFiles();
