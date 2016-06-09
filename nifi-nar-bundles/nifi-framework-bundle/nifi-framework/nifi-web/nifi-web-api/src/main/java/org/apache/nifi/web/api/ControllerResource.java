@@ -52,6 +52,7 @@ import org.apache.nifi.cluster.manager.exception.UnknownNodeException;
 import org.apache.nifi.cluster.protocol.NodeIdentifier;
 import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.nar.ExtensionMapping;
+import org.apache.nifi.nar.ext.MavenNarExtensionSpec;
 import org.apache.nifi.nar.ext.NarExtensionSpec;
 import org.apache.nifi.web.NiFiServiceFacade;
 import org.apache.nifi.web.Revision;
@@ -612,8 +613,9 @@ public class ControllerResource extends ApplicationResource {
         }
 
         // sideload
-        final NarExtensionSpec spec = new NarExtensionSpec(groupId, artifactId, version, NarExtensionSpec.NAR_PACKAGING,
-                narUri);
+        final NarExtensionSpec spec = wellformedGAV
+                ? new MavenNarExtensionSpec(groupId, artifactId, version, NarExtensionSpec.NAR_PACKAGING, narUri)
+                : new NarExtensionSpec(groupId, artifactId, version, NarExtensionSpec.NAR_PACKAGING, narUri);
         serviceFacade.sideLoad(spec,
                 (ExtensionMapping) httpServletRequest.getServletContext().getAttribute("nifi-extension-mapping"));
         return clusterContext(generateOkResponse("Successfully Loaded: " + spec)).build();

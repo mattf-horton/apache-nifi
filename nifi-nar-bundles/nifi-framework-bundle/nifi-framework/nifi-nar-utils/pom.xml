@@ -14,6 +14,9 @@
       limitations under the License.
     -->
     <modelVersion>4.0.0</modelVersion>
+    <properties>
+        <version.shrinkwrap.resolvers>2.2.2</version.shrinkwrap.resolvers>
+    </properties>
     <parent>
         <groupId>org.apache.nifi</groupId>
         <artifactId>nifi-framework</artifactId>
@@ -30,5 +33,36 @@
             <groupId>org.apache.nifi</groupId>
             <artifactId>nifi-api</artifactId>
         </dependency>
+         <dependency>
+      <groupId>org.jboss.shrinkwrap.resolver</groupId>
+      <artifactId>shrinkwrap-resolver-api</artifactId>
+      <version>${version.shrinkwrap.resolvers}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.shrinkwrap.resolver</groupId>
+      <artifactId>shrinkwrap-resolver-spi</artifactId>
+      <version>${version.shrinkwrap.resolvers}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.shrinkwrap.resolver</groupId>
+      <artifactId>shrinkwrap-resolver-api-maven</artifactId>
+      <version>${version.shrinkwrap.resolvers}</version>
+      <scope>test</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.shrinkwrap.resolver</groupId>
+      <artifactId>shrinkwrap-resolver-spi-maven</artifactId>
+      <version>${version.shrinkwrap.resolvers}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.shrinkwrap.resolver</groupId>
+      <artifactId>shrinkwrap-resolver-impl-maven</artifactId>
+      <version>${version.shrinkwrap.resolvers}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.jboss.shrinkwrap.resolver</groupId>
+      <artifactId>shrinkwrap-resolver-impl-maven-archive</artifactId>
+      <version>${version.shrinkwrap.resolvers}</version>
+    </dependency>
     </dependencies>
 </project>
