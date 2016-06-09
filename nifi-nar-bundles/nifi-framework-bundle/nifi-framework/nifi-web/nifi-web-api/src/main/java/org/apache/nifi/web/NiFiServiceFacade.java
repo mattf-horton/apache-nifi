@@ -1514,8 +1514,10 @@ public interface NiFiServiceFacade {
 
     /**
      * @param spec
+     *            Extension Spec
      * @param extensionMapping
-     * @return
+     *            pass existing extension-mapping if exists
+     * @return returns updated extension-mapping
      */
     ExtensionMapping sideLoad(NarExtensionSpec spec, ExtensionMapping extensionMapping);
 }

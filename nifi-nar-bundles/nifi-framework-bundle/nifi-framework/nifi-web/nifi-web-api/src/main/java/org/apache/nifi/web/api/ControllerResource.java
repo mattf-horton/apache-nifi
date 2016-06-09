@@ -558,19 +558,15 @@ public class ControllerResource extends ApplicationResource {
      * requests are supposed to be idempotent and this endpoint is certainly
      * not.
      *
-     * @param httpServletRequest
-     *            request
-     * @param revisionEntity
-     *            The revision is used to verify the client is working with the
-     *            latest version of the flow.
-     * @return A processGroupEntity.
      */
     @GET
     @Consumes(MediaType.WILDCARD)
     @Produces(MediaType.APPLICATION_JSON)
     @Path("sideload")
     // TODO - @PreAuthorize("hasRole('ROLE_DFM')")
-    @ApiOperation(value = "SideLoad an external NAR Extension", notes = "This operation returns a boolen statu that is representative of execution of SildeLoading Process ", response = Boolean.class, authorizations = {
+    @ApiOperation(value = "SideLoad an external NAR Extension",
+            notes = "This operation returns a boolen statu that is representative of execution of SildeLoading Process ",
+            response = Boolean.class, authorizations = {
             @Authorization(value = "Administrator", type = "ROLE_ADMIN") })
     @ApiResponses(value = {
             @ApiResponse(code = 400, message = "NiFi was unable to complete the request because it was invalid. The request should not be retried without modification."),
