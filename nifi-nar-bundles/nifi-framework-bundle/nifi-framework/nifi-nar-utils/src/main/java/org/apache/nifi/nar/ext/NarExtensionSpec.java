@@ -22,7 +22,6 @@ import java.net.URI;
  * Basic Specification for an artifact/nar that can be resolved and loaded from
  * registry. This basic implementation relies on file system based repository
  * structure as per maven specification.
- * 
  * Every registry/repository provider should to extend this class and implement
  * their own way of resolving an artifact by overriding {@link #resolve()} .
  */
@@ -37,7 +36,7 @@ public class NarExtensionSpec {
 
 
     /**
-     * 
+     *
      */
     public NarExtensionSpec() {
         super();
@@ -45,8 +44,11 @@ public class NarExtensionSpec {
 
     /**
      * @param groupId
+     *            G of GAV
      * @param artifactId
+     *            A of GAV
      * @param version
+     *            version number if any
      */
     public NarExtensionSpec(String groupId, String artifactId, String version) {
         super();
@@ -58,9 +60,13 @@ public class NarExtensionSpec {
 
     /**
      * @param groupId
+     *            G of GAV
      * @param artifactId
+     *            A of GAV
      * @param version
+     *            version number if any
      * @param packaging
+     *            type of packaging e.g nar
      */
     public NarExtensionSpec(String groupId, String artifactId, String version, String packaging) {
         this(groupId, artifactId, version);
@@ -69,10 +75,15 @@ public class NarExtensionSpec {
 
     /**
      * @param groupId
+     *            G of GAV
      * @param artifactId
+     *            A of GAV
      * @param version
+     *            version number if any
      * @param packaging
+     *            type of packaging e.g nar
      * @param resourceURI
+     *            Specific {@link URI} for resource
      */
     public NarExtensionSpec(String groupId, String artifactId, String version, String packaging, URI resourceURI) {
         super();
@@ -114,8 +125,8 @@ public class NarExtensionSpec {
     /**
      * Resolves the artifact/nar and provides a URI from where the artifact can
      * be read as File/Stream etc.
-     * 
-     * @return
+     *
+     * @return returns resource URI if available else null
      */
     public URI resolve() {
         return resourceURI;
