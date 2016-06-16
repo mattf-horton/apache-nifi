@@ -24,7 +24,6 @@ import java.io.InputStreamReader;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.net.SocketException;
-import java.net.URI;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -831,11 +830,10 @@ public class JettyServer implements NiFiServer {
         this.extensionMapping = extensionMapping;
     }
 
-    public void sideLoadNar(final URI narLocation) {
+    public void sideLoadNar(final File sideLoadableNarFile) {
         try {
-            final File sideLoadableNarFile = new File(narLocation);
             NarClassLoaders.sideLoad(NarUnpacker.unpackSideLoadedNar(props, sideLoadableNarFile, extensionMapping));
-            ExtensionManager.discoverSideloadeExtensions();
+            ExtensionManager.discoverSideloadedExtensions();
         } catch (ClassNotFoundException | IOException e) {
             logger.error("Error SideLoading Nar file", e);
             throw new ProcessException(e);

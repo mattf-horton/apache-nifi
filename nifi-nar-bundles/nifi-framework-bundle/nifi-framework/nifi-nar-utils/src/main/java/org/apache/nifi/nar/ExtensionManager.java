@@ -93,7 +93,7 @@ public class ExtensionManager {
         }
     }
 
-    public static void discoverSideloadeExtensions() {
+    public static void discoverSideloadedExtensions() {
         // get the current context class loader
         ClassLoader currentContextClassLoader = Thread.currentThread().getContextClassLoader();
 
