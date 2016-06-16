@@ -15,9 +15,9 @@
  * limitations under the License.
  */
 package org.apache.nifi.nar.ext;
+// TBD: could be under "nar", but perhaps better under org.apache.nifi.processor.external
+// in the nifi-api module?  But the dependency tree doesn't seem to work with that.
 
-// TBD: Shouldn't this be in org.apache.nifi.processor.external under nifi-api module?
-// Otherwise, put it under nifi-nar-utils where Puspendu originally had this stuff.
 
 import java.io.File;
 import java.net.URI;

@@ -15,6 +15,8 @@
  * limitations under the License.
  */
 package org.apache.nifi.nar.ext;
+// TBD: shouldn't be under "nar", perhaps create org.apache.nifi.ext_resources
+// as new module under nifi-commons ?
 
 import java.io.File;
 import java.net.URI;
