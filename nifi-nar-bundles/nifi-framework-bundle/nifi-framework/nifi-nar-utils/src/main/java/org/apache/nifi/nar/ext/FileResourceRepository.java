@@ -118,7 +118,7 @@ public class FileResourceRepository extends AbstractExternalRepository {
    * @return a URI from which the docs can be read
    */
   public URI resolveDocumentation(AbstractExtensionSpec resourceSpec) {
-    URI result = "";
+    URI result = null;
     return result;  // TBD: not yet implemented.
   }
 

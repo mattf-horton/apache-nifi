@@ -27,17 +27,16 @@ import java.net.URI;
  */
 public abstract class AbstractExtensionSpec {
 
-    protected String resourceType; // Example values could be "processor",
-                                   // "template", etc.
-  protected String artifactId;  // A of GAV
-  protected String groupId;     // G of GAV
-  protected String version;     // V of GAV
-  protected String packaging;   // Loading a resource depends on its packaging format
+  protected String resourceType; // Example values could be "processor", "template", etc.
+  protected String artifactId;   // A of GAV
+  protected String groupId;      // G of GAV
+  protected String version;      // V of GAV
+  protected String packaging;    // Loading a resource depends on its packaging format
   protected AbstractExternalRepository repository; // The repository presenting this artifact
-  protected String locatorInfo; // Additional repo-specific info the repository needs
-                                // to resolve the artifact and its documentation
-  protected File resourceFile;  // Cached result of resolving the packaged artifact file
-  protected URI resourceDoc;    // Cached result of resolving the artifact's documentation stream
+  protected String locatorInfo;  // Additional repo-specific info the repository needs
+                                 // to resolve the artifact and its documentation
+  protected File resourceFile;   // Cached result of resolving the packaged artifact file
+  protected URI  resourceDoc;    // Cached result of resolving the artifact's documentation stream
 
   // These aren't the only allowed values, but they should be well-known values
   // so define them in constants here in the parent class.
@@ -201,8 +200,7 @@ public abstract class AbstractExtensionSpec {
    * Resolve the artifact documentation and provide a URI from where
    * the documentation stream can be read
    *
-   * @return returns documentation URI.  Empty string ("") indicates documentation
-   * not available.
+   * @return returns documentation URI.
    */
   public URI getResourceDoc() {
     if (resourceDoc == null) {
@@ -214,7 +212,6 @@ public abstract class AbstractExtensionSpec {
 
   @Override
   public String toString() {
-    return resourceFile.toString();
     return String.format("%s.%s-%s (%s %s) URI=%s DOC=%s", groupId, artifactId,
             version, resourceType, packaging, resourceFile.toString(),
             resourceDoc.toString());

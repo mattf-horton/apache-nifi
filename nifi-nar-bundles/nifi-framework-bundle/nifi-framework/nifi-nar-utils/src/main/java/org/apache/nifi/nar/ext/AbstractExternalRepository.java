@@ -58,13 +58,6 @@ public abstract class AbstractExternalRepository {
   // Constructors ****************************************************** //
 
   /**
-   * Null constructor
-   */
-  public AbstractExternalRepository() {
-    super();
-  }
-
-  /**
    * Basic super constructor for an external repository instance
    *
    * @param repoId    a unique name for the repository

@@ -192,7 +192,7 @@ public class MavenResourceRepository extends AbstractExternalRepository {
     URI result = resourceSpec.resourceDoc;
           // Note deliberate bypass of the getter method {resourceSpec.getResourceDoc()},
           // which would infinite loop.
-    if (result.equals(null) || result.equals("")) {
+    if (result.equals(null)) {
       final String gav = resourceSpec.getGroupId() + ":" + resourceSpec.getArtifactId() +
               ":" + DOC_PACKAGE + ":" + resourceSpec.getVersion();
       try {
@@ -201,9 +201,7 @@ public class MavenResourceRepository extends AbstractExternalRepository {
         /* TBD: log this.  What context?
            getLogger().error("Failed to maven resolve DOC_PACKAGE for gav: "+gav+" due to {}", e);
          */
-        result = ""; //supress exception
-      } finally {
-        if (result.equals(null)) {result = "";}
+        result = null; //suppress exception
       }
     }
     return result;
