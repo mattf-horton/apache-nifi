@@ -27,7 +27,8 @@ import java.net.URI;
  */
 public abstract class AbstractExtensionSpec {
 
-  protected String resourceType // Example values could be "processor", "template", etc.
+    protected String resourceType; // Example values could be "processor",
+                                   // "template", etc.
   protected String artifactId;  // A of GAV
   protected String groupId;     // G of GAV
   protected String version;     // V of GAV
