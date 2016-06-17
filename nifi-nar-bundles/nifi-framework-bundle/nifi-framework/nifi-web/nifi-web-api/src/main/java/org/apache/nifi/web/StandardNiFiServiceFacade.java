@@ -2976,7 +2976,7 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
             final File sideLoadableNarFile = new File(spec.resolve());
             NarClassLoaders
                     .sideLoad(NarUnpacker.unpackSideLoadedNar(properties, sideLoadableNarFile, extensionMapping));
-            ExtensionManager.discoverSideloadeExtensions();
+            ExtensionManager.discoverSideloadedExtensions();
         } catch (ClassNotFoundException | IOException e) {
             logger.error("Error Loading Nar Extension ", e);
             throw new ProcessException(e);
