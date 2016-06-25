@@ -15,23 +15,48 @@
  * limitations under the License.
  */
 package org.apache.nifi.nar.ext;
-// TBD: shouldn't be under "nar", perhaps create org.apache.nifi.ext_resources
+// TBD: shouldn't be under "nar", perhaps create org.apache.nifi.nifiExtensions
 // as new module under nifi-commons ?
 
 import java.io.File;
+import java.io.InputStream;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
+import org.xml.sax.InputSource;
+
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathFactory;
+import javax.xml.xpath.XPathExpressionException;
 
 /**
- * There are multiple types of repository for external resources, with
- * different mechanisms for resolving and retrieving, and presenting
- * meta-data.  But all must present these basic methods.
+ * This abstract class specifies the basic functionality of an ExternalRepository
+ * suitable for storing and retrieving extension packages, of any type, that can be
+ * dynamically loaded into NiFi.
+ *
+ * All issues regarding how to resolve and deliver the extension package file,
+ * how to obtain and provide metadata, and how to check security signatures,
+ * belong to the sub-classes of this {AbstractExternalRepository}.
+ * Issues regarding how to unpackage and dynamically load the extension, belong
+ * to the {AbstractExtensionSpec} sub-classes.
+ *
+ * Many or perhaps most ExternalRepository implementations will require that each
+ * extension package have an associated POM file from which to read the metadata.
+ * Therefore we provide utility methods that support extracting metadata from a
+ * POM file or POM-like xml stream.  The use of these methods is optional.
+ *
+ * It is critical that all ExternalRepository implementations correctly support
+ * security signature checking, and successfully resolve only package files that
+ * have a correct signature, with a signing certificate from a source configured
+ * as acceptable for the local server.  For Maven-based repositories, this
+ * functionality is implicit in the "resolve" logic.  For other repository types,
+ * the functionality must be explicitly provided.
  *
  * TBD:  We should have a registry of known and accepted external repository
  * instances. These could be automatically registered upon instantiation.
  * However, Maven repositories are already managed through external configurations,
  * and local file-based repositories may arguably not need much management.
+ *
  */
 public abstract class AbstractExternalRepository {
 
@@ -43,16 +68,16 @@ public abstract class AbstractExternalRepository {
     // set if the repoBase has been authenticated as a known repository
   protected boolean authorized = false;
     // set if the repository has been acknowledged as an approved repository
-    // to obtain resources from
+    // to obtain extensions from
 
 
-  // These aren't the only allowed values, but they should be well-known values
-  // so define them in constants here in the parent class.
+  // Well-known ExternalRepository types:
   public static final String FILE_REPO_TYPE = "file";
   public static final String MAVEN_REPO_TYPE = "maven";
 
-  // Used in repo implementations due to need to separately resolve documentation:
-  public static final String DOC_PACKAGE = AbstractExtensionSpec.DOC_PACKAGE;
+  // Special packaging type used to fetch associated POM files in Maven-derived
+  // repositories:
+  public static final String POM_PACKAGE = "pom";
 
 
   // Constructors ****************************************************** //
@@ -82,7 +107,7 @@ public abstract class AbstractExternalRepository {
    * @param authenticated the repoBase has been authenticated as a known
    *                      repository
    * @param authorized  the repository has been acknowledged as an approved
-   *                    repository to obtain resources from
+   *                    repository to obtain extensions from
    */
   public AbstractExternalRepository(String repoId, String repoType, String repoBase,
                                     boolean authenticated, boolean authorized) {
@@ -97,64 +122,83 @@ public abstract class AbstractExternalRepository {
   // General Use Methods *********************************************** //
 
   /**
-   * List the set of resource types this external repository offers.
+   * List the set of nifiExtensionTypes this external repository offers.
    * Example contents could be "processor", "template", etc.
    *
    * Some repositories may not be able to provide this information, and will
-   * return an empty list.
+   * return an empty list.  This will impact discoverability of extensions in the GUI.
    *
-   * @return    list of resource type names.  List may be empty, indicating
+   * TBD: suggest changing the Maven naming convention (groupId) for NiFi extensions,
+   * so that extensions of different types are in different branches of the name space.
+   *
+   * @return    list of nifiExtensionType names.  List may be empty, indicating
    *            information is not available.
    */
-  public abstract ArrayList<String> listResourceTypes();
+  public abstract ArrayList<String> listNifiExtensionTypes();
 
   /**
-   * List the set of resources of a particular type available from this
+   * List the set of extensions of a particular type available from this
    * AbstractExternalRepository, with their metadata.
    *
-   * @param resourceType  which type of resource to list.  If null, indicates
-   *                      request for list of ALL resources available,
-   *                      regardless of type.
-   * @return    Map of resources of the requested type.  The map keys are either
-   * artifactIds or a more human-readable variant of the artifact name for use
-   * with GUI, and the values are full AbstractExtensionSpec for each artifact.
+   * @param nifiExtensionType  which type of extension to list.  If null, indicates
+   *                           request for list of ALL extensions available,
+   *                           regardless of type.
+   * @return    Map of extensions of the requested type.  The map keys are either
+   * the human-readable extension name if available {@link AbstractExtensionSpec:name}
+   * or "groupId.artifactId" if not, and the values are full {AbstractExtensionSpec}
+   * for each extension.
    */
-  public abstract HashMap<String, AbstractExtensionSpec> listResources(String resourceType);
+  public abstract HashMap<String, AbstractExtensionSpec> listExtensions(String nifiExtensionType);
 
   /**
-   * Acquire the short-form documentation for a particular external resource.
-   * This is typically for GUI purposes, so each artifact is self-documenting.
-   * The short-form or preview doc should include enough info so user can tell
-   * if they want to load and use the resource itself.
-   *
-   * A URI for a stream is preferred rather than a file, as it is assumed the
-   * user has not yet decided whether to download the resource, and therefore
-   * we shouldn't clutter non-cache storage with its documentation.
-   *
-   * If document preview is not available for a particular resource, return
-   * an empty string (not null) rather than throwing an exception.
-   *
-   * @param resourceSpec  what resource we want to get the docs for, and where to get it from
-   * @return    a URI from which the docs can be read.  Returns empty string upon failure
-   * or unavailability.
-   */
-  public abstract URI resolveDocumentation(AbstractExtensionSpec resourceSpec);
-
-  /**
-   * Acquire a particular external resource from the remote repository, or
+   * Acquire a particular extension package from the external repository, or
    * present the local file if already locally available.
    *
-   * Implementations of resolveResource() MUST include a validation step that
-   * confirms the resolved resource file matches its signature, and the signing
-   * authority is recognized and accepted.
+   * TBD: should this instead always re-resolve, even if the File value has already
+   * been set?
    *
-   * @param resourceSpec  what resource we want to get, and where to get it from
-   * @return    a File, from which the resource can be loaded
+   * Implementations of resolveExtension() MUST include a validation step that
+   * confirms the resolved extension package file matches its signature, and the
+   * signing authority is recognized and accepted.
+   *
+   * @param extensionSpec  what extension we want to get, and where to get it from
+   * @return    a package File, from which the extension can be loaded
    */
-  public abstract File resolveResource(AbstractExtensionSpec resourceSpec);
+  public abstract File resolveExtension(AbstractExtensionSpec extensionSpec);
+
+  /**
+   * Refresh internal data structures related to the listing of extensions
+   * in the repository.  Doesn't return anything, but subsequent calls to the
+   * above "list" methods may return different results after than before.
+   */
+  public abstract void refreshRepoListing();
+
+
+  // Utility Methods **************************************************** //
+
+  /**
+   * Many or perhaps most ExternalRepository implementations will require that each
+   * extension package have an associated POM file from which to read the metadata.
+   * Therefore we provide this utility method that supports extracting metadata from a
+   * POM file or POM-like xml stream.  The use of this method is optional.
+   *
+   * @param parseMap caller must provide a new HashMap object, with keys set to the
+   *            XPath evaluation keys desired to be extracted from the POM.
+   *            Values will be ignored and overwritten.
+   *            Callers may start with a template map the ExtensionSpec.
+   * @param pomStream - URI for the POM or POM-like xml stream or file to be parsed.
+   *
+   * @return same parseMap object, with values filled in from the POM.  Any key
+   * not found in the POM will have a null value.
+   */
+  public static HashMap<String, String> parsePom(final HashMap<String, String> parseMap,
+                                                 URI pomStream) {
+    //TBD: not implemented yet
+    return parseMap;
+  }
 
 
   // TBD: In UI code need generic accessors that list approved repositories,
-  // their offerings, and short-form documentation for each available artifact.
+  // their offerings, and descriptions for each available extension.
 
 }
