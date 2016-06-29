@@ -26,32 +26,37 @@ import java.io.IOException;
 import java.net.URI;
 
 /**
- * {@link AbstractExtensionSpec} implementation for type "processor" (PROCESSOR_TYPE).
- * Only NAR_PACKAGING is supported in this implementation.
+ * The existence of this ExtensionSpec-for-ExtensionSpecs allows new
+ * nifiExtensionTypes to be sideloaded as extensions themselves.
+ * Thus the set of sideloadable classes is extensible without modifying
+ * core code.
+ *
+ * Only NAR_PACKAGING is supported.
+ *
  */
-public class ProcessorExtensionSpec extends AbstractExtensionSpec {
+public class ExtensionSpecSpec extends AbstractExtensionSpec {
 
   // Constructors ****************************************************** //
 
   /*
    * Constructor with basic required elements
    */
-  public ProcessorExtensionSpec(String groupId, String artifactId, String version,
+  public ExtensionSpecSpec(String groupId, String artifactId, String version,
                                 String name, String description,
                                 AbstractExternalRepository repository,
                                 String locatorInfo) {
-    super(PROCESSOR_TYPE, groupId, artifactId, version, NAR_PACKAGING,
+    super(EXTENSION_SPEC_TYPE, groupId, artifactId, version, NAR_PACKAGING,
             name, description, repository, locatorInfo);
   }
 
   /*
    * Constructor with basic required elements, plus resolved POM
    */
-  public ProcessorExtensionSpec(String groupId, String artifactId, String version,
+  public ExtensionSpecSpec(String groupId, String artifactId, String version,
                                 String name, String description,
                                 AbstractExternalRepository repository,
                                 String locatorInfo, URI extensionPom) {
-    super(PROCESSOR_TYPE, groupId, artifactId, version, NAR_PACKAGING,
+    super(EXTENSION_SPEC_TYPE, groupId, artifactId, version, NAR_PACKAGING,
             name, description, repository, locatorInfo, extensionPom);
   }
 
@@ -59,22 +64,22 @@ public class ProcessorExtensionSpec extends AbstractExtensionSpec {
    * Support null implementation of File-based test repos by including the
    * resolved file path in the constructed ProcessorExtensionSpec
    */
-  public ProcessorExtensionSpec(String groupId, String artifactId, String version,
+  public ExtensionSpecSpec(String groupId, String artifactId, String version,
                                 String name, String description,
                                 AbstractExternalRepository repository,
                                 String locatorInfo, URI extensionPom,
                                 File extensionPkg) {
-    super(PROCESSOR_TYPE, groupId, artifactId, version, NAR_PACKAGING,
+    super(EXTENSION_SPEC_TYPE, groupId, artifactId, version, NAR_PACKAGING,
             name, description, repository, locatorInfo, extensionPom, extensionPkg);
   }
 
 
   // General Use Methods *********************************************** //
 
-
   @Override
   /**
-   * load() method appropriate to processor extensions wrapped in NAR packaging
+   * load() method appropriate to ExtensionSpec extensions (representing new
+   * nifiExtensionTypes) wrapped in NAR packaging
    *
    * @return  true if successful, false if not.
    */
@@ -84,6 +89,5 @@ public class ProcessorExtensionSpec extends AbstractExtensionSpec {
      * */
     return false; //TBD: not implemented yet
   }
-
 
 }

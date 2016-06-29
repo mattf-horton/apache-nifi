@@ -135,8 +135,8 @@ public class MavenExternalRepository extends AbstractExternalRepository {
    *                           request for list of ALL extensions available,
    *                           regardless of type.
    * @return    Map of extensions of the requested type.  The map keys are either
-   * the human-readable extension name if available {@link AbstractExtensionSpec:name}
-   * or "groupId.artifactId" if not, and the values are full {AbstractExtensionSpec}
+   * the human-readable extension name if available {@link AbstractExtensionSpec#name}
+   * or "groupId.artifactId" if not, and the values are full {@link AbstractExtensionSpec}
    * for each extension.
    */
   public HashMap<String, AbstractExtensionSpec> listExtensions(String nifiExtensionType) {
@@ -183,7 +183,7 @@ public class MavenExternalRepository extends AbstractExternalRepository {
    */
   public File resolveExtension(AbstractExtensionSpec extensionSpec) {
     File result = extensionSpec.extensionPkg;
-           // Note deliberate bypass of the getter method {extensionSpec.getExtensionPkg()},
+           // Note deliberate bypass of the getter method {@link extensionSpec#getExtensionPkg()},
            // which would infinite loop.
     if (result.equals(null)) {
       final String gav = extensionSpec.getGroupId() + ":" + extensionSpec.getArtifactId() +

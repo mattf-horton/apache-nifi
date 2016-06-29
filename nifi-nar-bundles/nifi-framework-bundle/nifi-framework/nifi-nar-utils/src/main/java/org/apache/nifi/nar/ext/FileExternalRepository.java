@@ -74,7 +74,7 @@ public class FileExternalRepository extends AbstractExternalRepository {
    * List the set of nifiExtensionTypes this FileExternalRepository instance offers.
    * Example contents could be "processor", "template", etc.
    *
-   * If Maven directory structure is used, see {MavenExternalRepository},
+   * If Maven directory structure is used, see {@link MavenExternalRepository},
    * otherwise perhaps we specify per-type subdirectories under the base directory.
    * Metadata will be extracted from accompanying POM files, as with MavenExternalRepository.
    *
@@ -91,15 +91,15 @@ public class FileExternalRepository extends AbstractExternalRepository {
    *
    * @param nifiExtensionType  which type of extension to list.
    * @return    Map of extensions of the requested type.  The map keys are either
-   * the human-readable extension name if available {@link AbstractExtensionSpec:name}
-   * or "groupId.artifactId" if not, and the values are full {AbstractExtensionSpec}
+   * the human-readable extension name if available {@link AbstractExtensionSpec#name}
+   * or "groupId.artifactId" if not, and the values are full {@link AbstractExtensionSpec}
    * for each extension.
    */
   public HashMap<String, AbstractExtensionSpec> listExtensions(String nifiExtensionType) {
     HashMap<String, AbstractExtensionSpec> result = new HashMap<String, AbstractExtensionSpec>();
     {
       /*
-          See {MavenExternalRepository} and above comments.
+          See {@link MavenExternalRepository} and above comments.
         */
     }
     return result;  // TBD: not yet implemented.
@@ -108,7 +108,7 @@ public class FileExternalRepository extends AbstractExternalRepository {
   @Override
   /**
    * Return the File object for the extension package file.
-   * See {MavenExternalRepository} for structure of method.
+   * See {@link MavenExternalRepository} for structure of method.
    *
    * Implementations of resolveExtension() MUST include a validation step that
    * confirms the resolved extension package file matches its signature, and the

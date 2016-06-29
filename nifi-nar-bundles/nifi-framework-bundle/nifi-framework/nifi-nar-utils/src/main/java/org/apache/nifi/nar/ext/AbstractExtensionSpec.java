@@ -19,8 +19,15 @@ package org.apache.nifi.nar.ext;
 // as new module under nifi-commons ?
 
 import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
+
+import org.w3c.dom.Document;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.xpath.*;
+
 
 /**
  * Basic Specification for an extension package file that can be resolved and delivered
@@ -29,9 +36,9 @@ import java.util.HashMap;
  *
  * All issues regarding how to resolve and deliver the packaged extension file,
  * how to obtain and provide metadata, and how to check security signatures,
- * belong to the {AbstractExternalRepository} sub-classes.
+ * belong to the {@link AbstractExternalRepository} sub-classes.
  * Issues regarding how to unpackage and dynamically load the extension, belong
- * to the sub-classes of this {AbstractExtensionSpec} class.
+ * to the sub-classes of this {@link AbstractExtensionSpec} class.
  *
  * As part of the loading logic, each extension type will need to be added to the
  * GUI list of available extensions of that type, if such a list exists.
@@ -174,8 +181,8 @@ public abstract class AbstractExtensionSpec {
    * nifiExtensionType but different packagings?  This improves extensibility,
    * since new packagings could be added by third parties, but complicates
    * extension management.
-   *
-   * As part of the {load()} logic, each extension instance will need to be added
+   * <p>
+   * As part of the load() logic, each extension instance will need to be added
    * to the GUI list of available extensions of that type, if such a list exists.
    * That logic is very nifiExtensionType dependent, so see the sub-classes for examples.
    * Also see {@link org.apache.nifi.nar.ExtensionMapping}
@@ -183,7 +190,7 @@ public abstract class AbstractExtensionSpec {
    *
    * @return  true if successful, false if not.
    */
-  public abstract boolean load();
+  public abstract boolean load() throws FileNotFoundException, IOException;
 
 
   /**
@@ -252,6 +259,105 @@ public abstract class AbstractExtensionSpec {
 
 
   // Utility Methods  ********************************************* //
+
+  @Override
+  public String toString() {
+    return String.format("%s.%s-%s (%s %s) %s URI:%s DESCRIPTION: %s",
+            groupId, artifactId, version, nifiExtensionType, packaging, name,
+            (extensionPkg == null ? "UNRESOLVED" : extensionPkg.toString()),
+            description);
+  }
+
+
+  protected static final String[] basicPomNames = new String[]{ //for XPath parsing
+          "/groupId", "/artifactId", "/version", "/packaging", "/name",
+          "/description", "/properties/nifiExtensionType",
+  };
+  protected static final String TOP_LEVEL_NODE_NAME = "/project";
+
+  /**
+   * Many or perhaps most ExternalRepository implementations will require that each
+   * extension package have an associated POM file from which to read the metadata.
+   * Therefore we provide this utility method that supports extracting metadata
+   * needed by ExtensionSpecs from a POM file or POM-like xml stream.  The use
+   * of this method is optional.
+   *
+   * TBD: Should switch implementation from DOM parser to SAX.  More work needed.
+   *
+   * @param parseMap caller must provide a new HashMap object, with keys set to the
+   *            XPath evaluation keys desired to be extracted from the POM.
+   *            Keys are implicitly within a "/project" top-level node.
+   *            Values will be ignored and overwritten.
+   *            Callers may start with a template map such as from getNewParseMap(),
+   *            or re-use an existing parseMap object (watching out to avoid
+   *            re-entrancy).
+   *            Relevant node names in the POM should be unique.  Multi-valued results
+   *            will return whatever XPath returns.
+   * @param pomStream - URI for the POM or POM-like xml stream or file to be parsed.
+   *
+   * @return same parseMap object, with values filled in from the POM.  Any key
+   * not found in the POM will have a null value.
+   */
+  public static HashMap<String, String> parsePom(final HashMap<String, String> parseMap,
+                                                 URI pomStream) throws IOException {
+    Document doc;
+    try {
+      DocumentBuilderFactory dbfactory = DocumentBuilderFactory.newInstance();
+      doc = dbfactory.newDocumentBuilder().parse(pomStream.toString());
+    } catch (Exception e) {
+      throw new IOException(e);
+    }
+    XPath xpath = XPathFactory.newInstance().newXPath();
+
+    for (String key : parseMap.keySet()) {
+      String result = null;
+      try {
+        result = (String) xpath.evaluate(TOP_LEVEL_NODE_NAME+key, doc);
+	  // TBD: is it ok to assume the top-level node is "<project />"?
+	  // If not, we can probe the document for the name of the top-level node.
+	  // TBD: Also, is it ok to be not-namespace-aware?  We can create a
+	  // NamespaceResolver from the file, but I haven't been able to make it work.
+	  // TBD: Finally, this uses DOM model parser.  Trying to use SAX form
+	  // doesn't work, probably due to need for NamespaceContext.
+        if (result != null && result.isEmpty()) {result = null;}
+      } catch (XPathExpressionException xpe) {
+        // swallow the exception after logging it
+        // TBD: log the exception
+        result = null;
+      }
+      parseMap.put(key, result);
+    }
+    return parseMap;
+  }
+
+  /**
+   * Template HashMap for the set of required elements in a parse map to be
+   * provided to {@link #parsePom}.  If no additionalNames provided, then it
+   * just contains the seven mandatory metadata keys (groupId, artifactId, version,
+   * packaging, name, description, and properties.nifiExtensionType).  The use
+   * of this method is optional.
+   *
+   * @param additionalNames optional sequence of additional namestrings desired
+   *                        in the template.  Format must be "XPath" format, eg
+   *                        &lt;groupId /&gt; becomes "/groupId", and
+   *                        properties.foo becomes "/properties/foo".
+   *
+   * @return new HashMap pre-loaded with the desired keys for use with parsePom().
+   * All map values are nulls.
+   */
+  public static HashMap<String, String> getNewParseMap(String... additionalNames) {
+    HashMap<String, String> map =
+            new HashMap<String, String>(basicPomNames.length + additionalNames.length);
+
+    for (String name : basicPomNames) {
+      map.put(name, null);
+    }
+    for (String name : additionalNames) {
+      map.put(name, null);
+    }
+    return map;
+  }
+
 
   private boolean nullOrEmpty(String s) {
     return (s == null || s.isEmpty());

@@ -36,9 +36,9 @@ import javax.xml.xpath.XPathExpressionException;
  *
  * All issues regarding how to resolve and deliver the extension package file,
  * how to obtain and provide metadata, and how to check security signatures,
- * belong to the sub-classes of this {AbstractExternalRepository}.
+ * belong to the sub-classes of this {@link AbstractExternalRepository}.
  * Issues regarding how to unpackage and dynamically load the extension, belong
- * to the {AbstractExtensionSpec} sub-classes.
+ * to the {@link AbstractExtensionSpec} sub-classes.
  *
  * Many or perhaps most ExternalRepository implementations will require that each
  * extension package have an associated POM file from which to read the metadata.
@@ -144,8 +144,8 @@ public abstract class AbstractExternalRepository {
    *                           request for list of ALL extensions available,
    *                           regardless of type.
    * @return    Map of extensions of the requested type.  The map keys are either
-   * the human-readable extension name if available {@link AbstractExtensionSpec:name}
-   * or "groupId.artifactId" if not, and the values are full {AbstractExtensionSpec}
+   * the human-readable extension name if available {@link AbstractExtensionSpec#name}
+   * or "groupId.artifactId" if not, and the values are full {@link AbstractExtensionSpec}
    * for each extension.
    */
   public abstract HashMap<String, AbstractExtensionSpec> listExtensions(String nifiExtensionType);
@@ -175,27 +175,6 @@ public abstract class AbstractExternalRepository {
 
 
   // Utility Methods **************************************************** //
-
-  /**
-   * Many or perhaps most ExternalRepository implementations will require that each
-   * extension package have an associated POM file from which to read the metadata.
-   * Therefore we provide this utility method that supports extracting metadata from a
-   * POM file or POM-like xml stream.  The use of this method is optional.
-   *
-   * @param parseMap caller must provide a new HashMap object, with keys set to the
-   *            XPath evaluation keys desired to be extracted from the POM.
-   *            Values will be ignored and overwritten.
-   *            Callers may start with a template map the ExtensionSpec.
-   * @param pomStream - URI for the POM or POM-like xml stream or file to be parsed.
-   *
-   * @return same parseMap object, with values filled in from the POM.  Any key
-   * not found in the POM will have a null value.
-   */
-  public static HashMap<String, String> parsePom(final HashMap<String, String> parseMap,
-                                                 URI pomStream) {
-    //TBD: not implemented yet
-    return parseMap;
-  }
 
 
   // TBD: In UI code need generic accessors that list approved repositories,
