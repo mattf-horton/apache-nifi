@@ -21,6 +21,10 @@ import java.net.URI;
 import org.jboss.shrinkwrap.resolver.api.maven.Maven;
 
 /**
+ * REVIEWERS -- PLEASE IGNORE.  THIS IS AN OBSOLETE FILE THAT WILL BE DELETED SOON.
+ * REVIEWERS -- PLEASE IGNORE.  THIS IS AN OBSOLETE FILE THAT WILL BE DELETED SOON.
+ * REVIEWERS -- PLEASE IGNORE.  THIS IS AN OBSOLETE FILE THAT WILL BE DELETED SOON.
+ *
  * Basic Specification for an artifact/nar that can be resolved and loaded from
  * registry. This basic implementation relies on file system based repository
  * structure as per maven specification.
@@ -144,5 +148,18 @@ public class MavenNarExtensionSpec extends NarExtensionSpec {
     public String toString() {
         return resourceURI.toString();
     }
+
+
+    /**
+     * Test method for {@link org.apache.nifi.nar.ext.MavenNarExtensionSpec#resolve()}.
+     *
+    @Test
+    public void testResolve() {
+        MavenNarExtensionSpec extensionSpec = new MavenNarExtensionSpec("commons-io", "commons-io", "2.4", "jar", null);
+        URI uri = extensionSpec.resolve();
+        Assert.assertTrue(uri != null);
+    }
+    */
+
 
 }

@@ -566,7 +566,7 @@ public class ControllerResource extends ApplicationResource {
     @Path("sideload")
     // TODO - @PreAuthorize("hasRole('ROLE_DFM')")
     @ApiOperation(value = "SideLoad an external NAR Extension",
-            notes = "This operation returns a boolen statu that is representative of execution of SildeLoading Process ",
+            notes = "This operation returns a boolen status that is representative of execution of SideLoading Process ",
             response = Boolean.class, authorizations = {
             @Authorization(value = "Administrator", type = "ROLE_ADMIN") })
     @ApiResponses(value = {

@@ -19,6 +19,10 @@ package org.apache.nifi.nar.ext;
 import java.net.URI;
 
 /**
+ * REVIEWERS -- PLEASE IGNORE.  THIS IS AN OBSOLETE FILE THAT WILL BE DELETED SOON.
+ * REVIEWERS -- PLEASE IGNORE.  THIS IS AN OBSOLETE FILE THAT WILL BE DELETED SOON.
+ * REVIEWERS -- PLEASE IGNORE.  THIS IS AN OBSOLETE FILE THAT WILL BE DELETED SOON.
+ *
  * Basic Specification for an artifact/nar that can be resolved and loaded from
  * registry. This basic implementation relies on file system based repository
  * structure as per maven specification.
