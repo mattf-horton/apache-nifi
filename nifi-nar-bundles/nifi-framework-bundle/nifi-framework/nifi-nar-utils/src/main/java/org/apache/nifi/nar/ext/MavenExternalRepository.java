@@ -19,7 +19,6 @@ package org.apache.nifi.nar.ext;
 // as new module under nifi-commons ?
 
 import java.io.File;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -74,7 +73,7 @@ public class MavenExternalRepository extends AbstractExternalRepository {
    * If we refresh this, we spawn a new object, thereby avoiding reentrancy
    * problems, but leaving it up to the clients to notify on refresh.
    */
-  private HashMap<String, HashMap<String, AbstractExtensionSpec>> internalRepoListing = null;
+  private HashMap<String, HashMap<String, BasicExtensionSpec>> internalRepoListing = null;
 
 
   // Constructors ****************************************************** //
@@ -135,27 +134,27 @@ public class MavenExternalRepository extends AbstractExternalRepository {
    *                           request for list of ALL extensions available,
    *                           regardless of type.
    * @return    Map of extensions of the requested type.  The map keys are either
-   * the human-readable extension name if available {@link AbstractExtensionSpec#name}
-   * or "groupId.artifactId" if not, and the values are full {@link AbstractExtensionSpec}
+   * the human-readable extension name if available {@link BasicExtensionSpec#name}
+   * or "groupId.artifactId" if not, and the values are full {@link BasicExtensionSpec}
    * for each extension.
    */
-  public HashMap<String, AbstractExtensionSpec> listExtensions(String nifiExtensionType) {
+  public HashMap<String, BasicExtensionSpec> listExtensions(String nifiExtensionType) {
     getRepoListing(false);
     if (nifiExtensionType != null) {
       if (internalRepoListing.containsKey(nifiExtensionType)) {
-        return new HashMap<String, AbstractExtensionSpec>(internalRepoListing.get(nifiExtensionType));
+        return new HashMap<String, BasicExtensionSpec>(internalRepoListing.get(nifiExtensionType));
       } else {
-        return new HashMap<String, AbstractExtensionSpec>(0);
+        return new HashMap<String, BasicExtensionSpec>(0);
       }
     }
     else { //nifiExtensionType is null, so concat all the extension type listings
       int count = 0;
-      for (HashMap<String, AbstractExtensionSpec> m : internalRepoListing.values()) {
+      for (HashMap<String, BasicExtensionSpec> m : internalRepoListing.values()) {
         count += m.size();
       }
-      HashMap<String, AbstractExtensionSpec>  result =
-              new HashMap<String, AbstractExtensionSpec>(count);
-      for (HashMap<String, AbstractExtensionSpec> m : internalRepoListing.values()) {
+      HashMap<String, BasicExtensionSpec>  result =
+              new HashMap<String, BasicExtensionSpec>(count);
+      for (HashMap<String, BasicExtensionSpec> m : internalRepoListing.values()) {
         result.putAll(m);
       }
       return result;
@@ -181,7 +180,7 @@ public class MavenExternalRepository extends AbstractExternalRepository {
    * (after logging) if we fail to resolve, since by this point we should know
    * it exists and we want it.
    */
-  public File resolveExtension(AbstractExtensionSpec extensionSpec) {
+  public File resolveExtension(BasicExtensionSpec extensionSpec) {
     File result = extensionSpec.extensionPkg;
            // Note deliberate bypass of the getter method {@link extensionSpec#getExtensionPkg()},
            // which would infinite loop.
@@ -214,11 +213,11 @@ public class MavenExternalRepository extends AbstractExternalRepository {
    *               is non-null
    * @return the resulting or cached value of internalRepoListing
    */
-  private synchronized HashMap<String, HashMap<String, AbstractExtensionSpec>>
+  private synchronized HashMap<String, HashMap<String, BasicExtensionSpec>>
           getRepoListing(boolean reload) {
     if (internalRepoListing == null || reload) {
-      internalRepoListing = new HashMap<String, HashMap<String, AbstractExtensionSpec>>(
-              AbstractExtensionSpec.NUMBER_OF_KNOWN_EXTENSION_TYPES);
+      internalRepoListing = new HashMap<String, HashMap<String, BasicExtensionSpec>>(
+              BasicExtensionSpec.NUMBER_OF_KNOWN_EXTENSION_TYPES);
       // scan the repository for all Nifi Extensions, building the hashmap as we go
       // TBD: not implemented yet.
     }

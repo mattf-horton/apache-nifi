@@ -19,7 +19,6 @@ package org.apache.nifi.nar.ext;
 // as new module under nifi-commons ?
 
 import java.io.File;
-import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
 
@@ -91,12 +90,12 @@ public class FileExternalRepository extends AbstractExternalRepository {
    *
    * @param nifiExtensionType  which type of extension to list.
    * @return    Map of extensions of the requested type.  The map keys are either
-   * the human-readable extension name if available {@link AbstractExtensionSpec#name}
-   * or "groupId.artifactId" if not, and the values are full {@link AbstractExtensionSpec}
+   * the human-readable extension name if available {@link BasicExtensionSpec#name}
+   * or "groupId.artifactId" if not, and the values are full {@link BasicExtensionSpec}
    * for each extension.
    */
-  public HashMap<String, AbstractExtensionSpec> listExtensions(String nifiExtensionType) {
-    HashMap<String, AbstractExtensionSpec> result = new HashMap<String, AbstractExtensionSpec>();
+  public HashMap<String, BasicExtensionSpec> listExtensions(String nifiExtensionType) {
+    HashMap<String, BasicExtensionSpec> result = new HashMap<String, BasicExtensionSpec>();
     {
       /*
           See {@link MavenExternalRepository} and above comments.
@@ -120,7 +119,7 @@ public class FileExternalRepository extends AbstractExternalRepository {
    * (after logging) if we fail to resolve, since by this point we should know
    * it exists and we want it.
    */
-  public File resolveExtension(AbstractExtensionSpec extensionSpec) {
+  public File resolveExtension(BasicExtensionSpec extensionSpec) {
     File result = null;
     return result;  // TBD: not yet implemented.
   }

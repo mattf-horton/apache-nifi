@@ -26,56 +26,25 @@ import java.util.Arrays;
 import java.util.HashMap;
 
 import org.junit.Assert;
-import org.junit.Assert.*;
 import org.junit.Test;
 
 
 /**
- * Tests the apis of {@link AbstractExtensionSpec} while by-passing the need
- * for a repository.  Utilizes test resources dummyExtension.txt and
- * dummyExtension.pom.
+ * Tests the apis of {@link BasicExtensionSpec} while by-passing the need for a
+ * repository.  Utilizes test resources dummyExtension.txt and dummyExtension.pom.
  */
-public class AbstractExtensionSpecTest {
+public class BasicExtensionSpecTest {
 
-  final Path resourcesPath = Paths.get("./src/test/resources/AbstractExtensionSpec");
+  final Path resourcesPath = Paths.get("./src/test/resources/BasicExtensionSpec");
   final Path repoPath = resourcesPath.resolve("private.nifi.extensions/dummy");
   final File extensionPkg = new File(repoPath.toString(), "dummyExtension.txt");
   final URI  extensionPom = (new File(repoPath.toString(), "dummyExtension.pom")).toURI();
 
   @Test
-  public void testGetNewParseMap() {
-    HashMap<String, String> pm1 = AbstractExtensionSpec.getNewParseMap();
-    Assert.assertEquals("bad size of newParseMap()", 7, pm1.size());
-    Assert.assertTrue("default value missing from newParseMap()", pm1.containsKey("/packaging"));
-    Assert.assertNull("non-null values in newParseMap()", pm1.get("/packaging"));
-
-    HashMap<String, String> pm2 = AbstractExtensionSpec.getNewParseMap("/foo", "/bar");
-    Assert.assertEquals("bad size of newParseMap(foo, bar)", 9, pm2.size());
-    Assert.assertTrue("default value missing from newParseMap(foo, bar)", pm2.containsKey("/packaging"));
-    Assert.assertTrue("extra value missing from newParseMap(foo, bar)", pm2.containsKey("/foo"));
-    Assert.assertNull("non-null values in newParseMap(foo, bar)", pm2.get("/foo"));
-  }
-
-  @Test
-  public void testParsePom() throws IOException {
-    HashMap<String, String> pp = AbstractExtensionSpec.parsePom(
-            AbstractExtensionSpec.getNewParseMap("/properties/extraDummyProp"),
-            extensionPom);
-    Assert.assertEquals("bad size of parsePom dict", 8, pp.size());
-    Assert.assertEquals("txt", pp.get("/packaging"));
-    Assert.assertEquals("private.nifi.extensions.dummy", pp.get("/groupId"));
-    Assert.assertEquals("dummy", pp.get("/properties/nifiExtensionType"));
-    Assert.assertEquals("extra value wrong in parsePom", "mega1",
-            pp.get("/properties/extraDummyProp"));
-    Assert.assertNull(pp.get("/name"));
-    Assert.assertNull(pp.get("/description"));
-  }
-
-  @Test
   public void testDummyExtensionSpec() throws FileNotFoundException, IOException {
     DummyRepo dr = new DummyRepo();
-    HashMap<String, String> pp = AbstractExtensionSpec.parsePom(
-            AbstractExtensionSpec.getNewParseMap(), extensionPom);
+    HashMap<String, String> pp = AbstractExternalRepository.parsePom(
+            AbstractExternalRepository.getNewParseMap(), extensionPom);
     DummyExtensionSpec des = new DummyExtensionSpec(
             pp.get("/groupId"),
             pp.get("/artifactId"),
@@ -97,8 +66,8 @@ public class AbstractExtensionSpecTest {
   @Test
   public void testToString() throws IOException {
     DummyRepo dr = new DummyRepo();
-    HashMap<String, String> pp = AbstractExtensionSpec.parsePom(
-            AbstractExtensionSpec.getNewParseMap(), extensionPom);
+    HashMap<String, String> pp = AbstractExternalRepository.parsePom(
+            AbstractExternalRepository.getNewParseMap(), extensionPom);
     DummyExtensionSpec des = new DummyExtensionSpec(
             pp.get("/groupId"),
             pp.get("/artifactId"),
@@ -115,14 +84,14 @@ public class AbstractExtensionSpecTest {
   }
 
 
-  private class DummyExtensionSpec extends AbstractExtensionSpec {
+  private class DummyExtensionSpec extends BasicExtensionSpec {
 
     private static final String TXT_PACKAGING = "txt";
     private static final String DUMMY_SPEC_TYPE = "dummy";
 
     /**
      * Support null implementation of File-based test repos by including the
-     * resolved file path in the constructed ProcessorExtensionSpec
+     * resolved file path in the constructed BasicExtensionSpec
      */
     private DummyExtensionSpec(String groupId, String artifactId, String version,
                              String name, String description,
@@ -133,9 +102,8 @@ public class AbstractExtensionSpecTest {
               name, description, repository, locatorInfo, extensionPom, extensionPkg);
     }
 
-    @Override
     /**
-     * load() method for this dummy.  It just checks if the expected file is there.
+     * Fake load() method for this dummy.  It just checks if the expected file is there.
      */
     public boolean load() throws FileNotFoundException, IOException {
 
@@ -163,13 +131,13 @@ public class AbstractExtensionSpecTest {
     }
 
     @Override
-    public HashMap<String, AbstractExtensionSpec> listExtensions(String nifiExtensionType){
-      HashMap<String, AbstractExtensionSpec> result = new HashMap<String, AbstractExtensionSpec>();
+    public HashMap<String, BasicExtensionSpec> listExtensions(String nifiExtensionType){
+      HashMap<String, BasicExtensionSpec> result = new HashMap<String, BasicExtensionSpec>();
       return result;
     }
 
     @Override
-    public File resolveExtension(AbstractExtensionSpec extensionSpec) {
+    public File resolveExtension(BasicExtensionSpec extensionSpec) {
       File result = null;
       return result;
     }

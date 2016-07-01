@@ -19,26 +19,28 @@ package org.apache.nifi.nar.ext;
 // as new module under nifi-commons ?
 
 import java.io.File;
-import java.io.InputStream;
+import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.HashMap;
-import org.xml.sax.InputSource;
 
+import org.w3c.dom.Document;
+
+import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.xpath.XPath;
 import javax.xml.xpath.XPathFactory;
 import javax.xml.xpath.XPathExpressionException;
 
 /**
  * This abstract class specifies the basic functionality of an ExternalRepository
- * suitable for storing and retrieving extension packages, of any type, that can be
- * dynamically loaded into NiFi.
+ * class suitable for interfacing with repositories, of any type, that store and
+ * retrieve extension packages that can be dynamically loaded into NiFi.
  *
  * All issues regarding how to resolve and deliver the extension package file,
  * how to obtain and provide metadata, and how to check security signatures,
  * belong to the sub-classes of this {@link AbstractExternalRepository}.
- * Issues regarding how to unpackage and dynamically load the extension, belong
- * to the {@link AbstractExtensionSpec} sub-classes.
+ * Issues regarding how to unpackage and dynamically load and register the
+ * extension, belong to core code specific to each type of extension.
  *
  * Many or perhaps most ExternalRepository implementations will require that each
  * extension package have an associated POM file from which to read the metadata.
@@ -48,7 +50,7 @@ import javax.xml.xpath.XPathExpressionException;
  * It is critical that all ExternalRepository implementations correctly support
  * security signature checking, and successfully resolve only package files that
  * have a correct signature, with a signing certificate from a source configured
- * as acceptable for the local server.  For Maven-based repositories, this
+ * as acceptable at the system level.  For Maven-based repositories, this
  * functionality is implicit in the "resolve" logic.  For other repository types,
  * the functionality must be explicitly provided.
  *
@@ -78,6 +80,8 @@ public abstract class AbstractExternalRepository {
   // Special packaging type used to fetch associated POM files in Maven-derived
   // repositories:
   public static final String POM_PACKAGE = "pom";
+  // For XPath parsing of POM files:
+  public static final String POM_TOP_LEVEL_NODE_NAME = "/project";
 
 
   // Constructors ****************************************************** //
@@ -118,7 +122,6 @@ public abstract class AbstractExternalRepository {
     this.authorized = authorized;
   }
 
-
   // General Use Methods *********************************************** //
 
   /**
@@ -144,11 +147,11 @@ public abstract class AbstractExternalRepository {
    *                           request for list of ALL extensions available,
    *                           regardless of type.
    * @return    Map of extensions of the requested type.  The map keys are either
-   * the human-readable extension name if available {@link AbstractExtensionSpec#name}
-   * or "groupId.artifactId" if not, and the values are full {@link AbstractExtensionSpec}
+   * the human-readable extension name if available {@link BasicExtensionSpec#name}
+   * or "groupId.artifactId" if not, and the values are full {@link BasicExtensionSpec}
    * for each extension.
    */
-  public abstract HashMap<String, AbstractExtensionSpec> listExtensions(String nifiExtensionType);
+  public abstract HashMap<String, BasicExtensionSpec> listExtensions(String nifiExtensionType);
 
   /**
    * Acquire a particular extension package from the external repository, or
@@ -164,7 +167,7 @@ public abstract class AbstractExternalRepository {
    * @param extensionSpec  what extension we want to get, and where to get it from
    * @return    a package File, from which the extension can be loaded
    */
-  public abstract File resolveExtension(AbstractExtensionSpec extensionSpec);
+  public abstract File resolveExtension(BasicExtensionSpec extensionSpec);
 
   /**
    * Refresh internal data structures related to the listing of extensions
@@ -173,8 +176,108 @@ public abstract class AbstractExternalRepository {
    */
   public abstract void refreshRepoListing();
 
+  /**
+   * Class-level method to lookup a particular ExtensionSpec by its signatureString.
+   * This is required so that Web APIs can use a purely textual representation
+   * of ExtensionSpecs.  This static final method is here in the AbstractExternalRepository
+   * class because ExternalRepository implementations instantiate all
+   * ExtensionSpecs, and so can maintain the needed lookup facility in a
+   * singleton data structure registry.
+   */
+  public static final BasicExtensionSpec lookupExtensionBySignature(String signature) {
+    // TBD: not yet implemented
+    return null;
+  }
+
 
   // Utility Methods **************************************************** //
+
+  /**
+   * Many or perhaps most ExternalRepository implementations will require that each
+   * extension package have an associated POM file from which to read the metadata.
+   * Therefore we provide this utility method that supports extracting metadata
+   * needed for ExtensionSpecs from a POM file or POM-like xml stream.  The use
+   * of this method is optional.
+   *
+   * TBD: Should switch implementation from DOM parser to SAX.  More work needed.
+   *
+   * @param parseMap caller must provide a new HashMap object, with keys set to the
+   *            XPath evaluation keys desired to be extracted from the POM.
+   *            Keys are implicitly within a "/project" top-level node.
+   *            Values will be ignored and overwritten.
+   *            Callers may start with a template map such as from getNewParseMap(),
+   *            or re-use an existing parseMap object (watching out to avoid
+   *            re-entrancy).
+   *            Relevant node names in the POM should be unique.  Multi-valued results
+   *            will return whatever XPath returns.
+   * @param pomStream - URI for the POM or POM-like xml stream or file to be parsed.
+   *
+   * @return same parseMap object, with values filled in from the POM.  Any key
+   * not found in the POM will have a null value.
+   */
+  public static HashMap<String, String> parsePom(final HashMap<String, String> parseMap,
+                                                 URI pomStream) throws IOException {
+    Document doc;
+    try {
+      DocumentBuilderFactory dbfactory = DocumentBuilderFactory.newInstance();
+      doc = dbfactory.newDocumentBuilder().parse(pomStream.toString());
+    } catch (Exception e) {
+      throw new IOException(e);
+    }
+    XPath xpath = XPathFactory.newInstance().newXPath();
+
+    for (String key : parseMap.keySet()) {
+      String result = null;
+      try {
+        result = (String) xpath.evaluate(POM_TOP_LEVEL_NODE_NAME +key, doc);
+        // TBD: is it ok to assume the top-level node is "<project />"?
+        // If not, we can probe the document for the name of the top-level node.
+        // TBD: Also, is it ok to be not-NamespaceContext-aware?  We can create a
+        // NamespaceResolver from the file, but I haven't been able to make it work.
+        // TBD: Finally, this uses DOM model parser.  Trying to use SAX form
+        // doesn't work, probably due to need for NamespaceContext.
+        if (result != null && result.isEmpty()) {result = null;}
+      } catch (XPathExpressionException xpe) {
+        // swallow the exception after logging it
+        // TBD: log the exception
+        result = null;
+      }
+      parseMap.put(key, result);
+    }
+    return parseMap;
+  }
+
+  /**
+   * Template HashMap for the set of required elements in a parse map to be
+   * provided to {@link #parsePom}.  If no additionalNames provided, then it
+   * just contains the seven mandatory metadata keys (groupId, artifactId, version,
+   * packaging, name, description, and properties.nifiExtensionType).  The use
+   * of this method is optional.
+   *
+   * TBD: does this belong in {@link BasicExtensionSpec}, so if it gets subclassed,
+   * an override method can provide additional parse keys?
+   *
+   * @param additionalNames optional sequence of additional namestrings desired
+   *                        in the template.  Format must be "XPath" format, eg
+   *                        &lt;groupId /&gt; becomes "/groupId", and
+   *                        properties.foo becomes "/properties/foo".
+   *
+   * @return new HashMap pre-loaded with the desired keys for use with parsePom().
+   * All map values are nulls.
+   */
+  public static HashMap<String, String> getNewParseMap(String... additionalNames) {
+    HashMap<String, String> map =
+            new HashMap<String, String>(BasicExtensionSpec.basicXPathNames.length + additionalNames.length);
+
+    for (String name : BasicExtensionSpec.basicXPathNames) {
+      map.put(name, null);
+    }
+    for (String name : additionalNames) {
+      map.put(name, null);
+    }
+    return map;
+  }
+
 
 
   // TBD: In UI code need generic accessors that list approved repositories,

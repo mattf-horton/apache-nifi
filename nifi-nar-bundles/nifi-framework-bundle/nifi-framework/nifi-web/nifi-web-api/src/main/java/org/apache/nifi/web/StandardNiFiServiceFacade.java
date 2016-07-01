@@ -73,7 +73,7 @@ import org.apache.nifi.nar.ExtensionManager;
 import org.apache.nifi.nar.ExtensionMapping;
 import org.apache.nifi.nar.NarClassLoaders;
 import org.apache.nifi.nar.NarUnpacker;
-import org.apache.nifi.nar.ext.NarExtensionSpec;
+import org.apache.nifi.nar.ext.BasicExtensionSpec;
 import org.apache.nifi.processor.exception.ProcessException;
 import org.apache.nifi.remote.RootGroupPort;
 import org.apache.nifi.reporting.Bulletin;
@@ -2971,9 +2971,9 @@ public class StandardNiFiServiceFacade implements NiFiServiceFacade {
     }
 
     @Override
-    public ExtensionMapping sideLoad(final NarExtensionSpec spec, ExtensionMapping extensionMapping) {
+    public ExtensionMapping sideLoad(final BasicExtensionSpec spec, ExtensionMapping extensionMapping) {
         try {
-            final File sideLoadableNarFile = new File(spec.resolve());
+            final File sideLoadableNarFile = spec.getRepository().resolveExtension(spec);
             NarClassLoaders
                     .sideLoad(NarUnpacker.unpackSideLoadedNar(properties, sideLoadableNarFile, extensionMapping));
             ExtensionManager.discoverSideloadedExtensions();

@@ -19,35 +19,27 @@ package org.apache.nifi.nar.ext;
 // as new module under nifi-commons ?
 
 import java.io.File;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.net.URI;
-import java.util.HashMap;
-
-import org.w3c.dom.Document;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.xpath.*;
 
 
 /**
  * Basic Specification for an extension package file that can be resolved and delivered
  * from an external repository, then dynamically loaded as an extension in NiFi.
  * All required metadata values must be provided at instantiation time.
+ * This "basic" ExtensionSpec meets the needs of Maven and File repositories, and
+ * may be sufficient for all repository types since {link #locatorInfo} is delegated
+ * to the ExternalRepository implementation.
  *
  * All issues regarding how to resolve and deliver the packaged extension file,
  * how to obtain and provide metadata, and how to check security signatures,
  * belong to the {@link AbstractExternalRepository} sub-classes.
- * Issues regarding how to unpackage and dynamically load the extension, belong
- * to the sub-classes of this {@link AbstractExtensionSpec} class.
- *
- * As part of the loading logic, each extension type will need to be added to the
- * GUI list of available extensions of that type, if such a list exists.
- * That logic is very nifiExtensionType dependent, so see the sub-classes for examples.
+ * Issues regarding how to unpackage and dynamically load the extension, are
+ * consigned to core code, since it is very extension-type-specific.
  *
  * TBD: should we add member variables for signature and signing certificate?
  * Or for having passed the security signature check?
  */
-public abstract class AbstractExtensionSpec {
+public class BasicExtensionSpec {
 
   // Required Meta-Data (obtained from repository) ******************** //
   protected final String nifiExtensionType; // Example values could be "processor", "template", etc.
@@ -74,20 +66,30 @@ public abstract class AbstractExtensionSpec {
                                  // May be an external stream, since metadata doesnt
                                  // need to be security-signed.
 
+  // Short hash-code or other text value that uniquely identifies a particular
+  // instance of ExtensionSpec, for use in Web APIs.  The same extension from
+  // two different repos should have two different signatureStrings.
+  private String signatureString = null; // TBD: not yet implemented
+
   // Well-known nifiExtensionType values:
   public static final String PROCESSOR_TYPE = "processor";
+  public static final String CONTROLLER_SERVICE_TYPE = "controllerservice";
+  public static final String REPORTING_TASK_TYPE = "reportingtask";
   public static final String TEMPLATE_TYPE = "template";
-
-  // These pre-defined nifiExtensionType values support extensibility of the
-  // ExtensionSpec + ExternalRepository framework:
-  public static final String EXTENSION_SPEC_TYPE = "ExtensionSpec";
-  public static final String EXTERNAL_REPO_TYPE = "ExternalRepository";
 
   // Well-known packaging types:
   public static final String NAR_PACKAGING = "nar";
+  public static final String XML_PACKAGING = "xml";
 
   // Used to initialize various data structures:
-  protected static final int NUMBER_OF_KNOWN_EXTENSION_TYPES = 8;
+  protected static final int NUMBER_OF_KNOWN_EXTENSION_TYPES = 4;
+  
+  // XPath names for ExtensionSpec member fields
+  // to assist in parsing metadata from POM or POM-like XML stream.
+  protected static final String[] basicXPathNames = new String[]{
+          "/groupId", "/artifactId", "/version", "/packaging", "/name",
+          "/description", "/properties/nifiExtensionType",
+  };
 
 
   // Constructors ****************************************************** //
@@ -103,10 +105,10 @@ public abstract class AbstractExtensionSpec {
    * @throws IllegalArgumentException if any required metadata value has null
    * or empty value.
    */
-  public AbstractExtensionSpec(String nifiExtensionType, String groupId, String artifactId,
-                               String version, String packaging, String name,
-                               String description, AbstractExternalRepository repository,
-                               String locatorInfo)
+  public BasicExtensionSpec(String nifiExtensionType, String groupId, String artifactId,
+                            String version, String packaging, String name,
+                            String description, AbstractExternalRepository repository,
+                            String locatorInfo)
           throws IllegalArgumentException {
     super();
     if (nullOrEmpty(nifiExtensionType) || nullOrEmpty(groupId) || nullOrEmpty(artifactId) ||
@@ -138,10 +140,10 @@ public abstract class AbstractExtensionSpec {
    * @throws IllegalArgumentException if any required metadata value has null
    * or empty value.
    */
-  public AbstractExtensionSpec(String nifiExtensionType, String groupId, String artifactId,
-                               String version, String packaging, String name,
-                               String description, AbstractExternalRepository repository,
-                               String locatorInfo, URI extensionPom)
+  public BasicExtensionSpec(String nifiExtensionType, String groupId, String artifactId,
+                            String version, String packaging, String name,
+                            String description, AbstractExternalRepository repository,
+                            String locatorInfo, URI extensionPom)
           throws IllegalArgumentException {
     this(nifiExtensionType, groupId, artifactId, version, packaging,
             name, description, repository, locatorInfo);
@@ -150,7 +152,7 @@ public abstract class AbstractExtensionSpec {
 
   /**
      * Support null implementation of File-based test repos by including the
-     * resolved file path in the constructed AbstractExtensionSpec
+     * resolved file path in the constructed BasicExtensionSpec
      *
      * <b>WARNING:</b> Using this constructor bypasses the check for security signatures
      * since repository.resolveExtension() method will never be called.
@@ -158,10 +160,10 @@ public abstract class AbstractExtensionSpec {
      * @throws IllegalArgumentException if any required metadata value has null
      * or empty value.
      */
-  public AbstractExtensionSpec(String nifiExtensionType, String groupId, String artifactId,
-                               String version, String packaging, String name,
-                               String description, AbstractExternalRepository repository,
-                               String locatorInfo, URI extensionPom, File extensionPkg)
+  public BasicExtensionSpec(String nifiExtensionType, String groupId, String artifactId,
+                            String version, String packaging, String name,
+                            String description, AbstractExternalRepository repository,
+                            String locatorInfo, URI extensionPom, File extensionPkg)
           throws IllegalArgumentException {
     this(nifiExtensionType, groupId, artifactId, version, packaging,
             name, description, repository, locatorInfo);
@@ -171,27 +173,6 @@ public abstract class AbstractExtensionSpec {
 
 
   // General Use Methods *********************************************** //
-
-  /**
-   * Each type of extension must sub-class this AbstractExtensionSpec and provide
-   * a load() method appropriate to the type and packaging.  If there are multiple
-   * packagings supported for the extension type, then the load() method must provide
-   * multiple cases.
-   * TBD: (question) Should we allow multiple sub-classes with the same
-   * nifiExtensionType but different packagings?  This improves extensibility,
-   * since new packagings could be added by third parties, but complicates
-   * extension management.
-   * <p>
-   * As part of the load() logic, each extension instance will need to be added
-   * to the GUI list of available extensions of that type, if such a list exists.
-   * That logic is very nifiExtensionType dependent, so see the sub-classes for examples.
-   * Also see {@link org.apache.nifi.nar.ExtensionMapping}
-   * TBD: resolve the above paragraph after design decisions are finalized.
-   *
-   * @return  true if successful, false if not.
-   */
-  public abstract boolean load() throws FileNotFoundException, IOException;
-
 
   /**
    * @return the nifiExtensionType
@@ -242,10 +223,15 @@ public abstract class AbstractExtensionSpec {
     return description;
   }
 
+  /**
+   * @return the ExternalRepository representing the repo containing this extension
+   */
+  public AbstractExternalRepository getRepository() { return repository; }
+
 
   /**
-   * Call the ExternalRepository to resolve the extension package file address
-   * and provide a File from which the extension can be loaded.
+   * Call the ExternalRepository implementation to resolve the extension package
+   * file address and provide a File from which the extension can be loaded.
    *
    * @return returns extension package file
    */
@@ -257,6 +243,20 @@ public abstract class AbstractExtensionSpec {
     return extensionPkg;
   }
 
+  /**
+   * Cache and return the signatureString value for this instance.
+   * Probably implement via custom hashCode(), but TBD: not yet implemented.
+   *
+   * @return the signatureString of an instance, for use with Web APIs
+   */
+  public String getSignatureString() {
+    if (signatureString == null) {
+      // derive from final info including repo differentiator
+      // TBD: not yet implemented
+    }
+    return signatureString;
+  }
+
 
   // Utility Methods  ********************************************* //
 
@@ -266,96 +266,6 @@ public abstract class AbstractExtensionSpec {
             groupId, artifactId, version, nifiExtensionType, packaging, name,
             (extensionPkg == null ? "UNRESOLVED" : extensionPkg.toString()),
             description);
-  }
-
-
-  protected static final String[] basicPomNames = new String[]{ //for XPath parsing
-          "/groupId", "/artifactId", "/version", "/packaging", "/name",
-          "/description", "/properties/nifiExtensionType",
-  };
-  protected static final String TOP_LEVEL_NODE_NAME = "/project";
-
-  /**
-   * Many or perhaps most ExternalRepository implementations will require that each
-   * extension package have an associated POM file from which to read the metadata.
-   * Therefore we provide this utility method that supports extracting metadata
-   * needed by ExtensionSpecs from a POM file or POM-like xml stream.  The use
-   * of this method is optional.
-   *
-   * TBD: Should switch implementation from DOM parser to SAX.  More work needed.
-   *
-   * @param parseMap caller must provide a new HashMap object, with keys set to the
-   *            XPath evaluation keys desired to be extracted from the POM.
-   *            Keys are implicitly within a "/project" top-level node.
-   *            Values will be ignored and overwritten.
-   *            Callers may start with a template map such as from getNewParseMap(),
-   *            or re-use an existing parseMap object (watching out to avoid
-   *            re-entrancy).
-   *            Relevant node names in the POM should be unique.  Multi-valued results
-   *            will return whatever XPath returns.
-   * @param pomStream - URI for the POM or POM-like xml stream or file to be parsed.
-   *
-   * @return same parseMap object, with values filled in from the POM.  Any key
-   * not found in the POM will have a null value.
-   */
-  public static HashMap<String, String> parsePom(final HashMap<String, String> parseMap,
-                                                 URI pomStream) throws IOException {
-    Document doc;
-    try {
-      DocumentBuilderFactory dbfactory = DocumentBuilderFactory.newInstance();
-      doc = dbfactory.newDocumentBuilder().parse(pomStream.toString());
-    } catch (Exception e) {
-      throw new IOException(e);
-    }
-    XPath xpath = XPathFactory.newInstance().newXPath();
-
-    for (String key : parseMap.keySet()) {
-      String result = null;
-      try {
-        result = (String) xpath.evaluate(TOP_LEVEL_NODE_NAME+key, doc);
-	  // TBD: is it ok to assume the top-level node is "<project />"?
-	  // If not, we can probe the document for the name of the top-level node.
-	  // TBD: Also, is it ok to be not-namespace-aware?  We can create a
-	  // NamespaceResolver from the file, but I haven't been able to make it work.
-	  // TBD: Finally, this uses DOM model parser.  Trying to use SAX form
-	  // doesn't work, probably due to need for NamespaceContext.
-        if (result != null && result.isEmpty()) {result = null;}
-      } catch (XPathExpressionException xpe) {
-        // swallow the exception after logging it
-        // TBD: log the exception
-        result = null;
-      }
-      parseMap.put(key, result);
-    }
-    return parseMap;
-  }
-
-  /**
-   * Template HashMap for the set of required elements in a parse map to be
-   * provided to {@link #parsePom}.  If no additionalNames provided, then it
-   * just contains the seven mandatory metadata keys (groupId, artifactId, version,
-   * packaging, name, description, and properties.nifiExtensionType).  The use
-   * of this method is optional.
-   *
-   * @param additionalNames optional sequence of additional namestrings desired
-   *                        in the template.  Format must be "XPath" format, eg
-   *                        &lt;groupId /&gt; becomes "/groupId", and
-   *                        properties.foo becomes "/properties/foo".
-   *
-   * @return new HashMap pre-loaded with the desired keys for use with parsePom().
-   * All map values are nulls.
-   */
-  public static HashMap<String, String> getNewParseMap(String... additionalNames) {
-    HashMap<String, String> map =
-            new HashMap<String, String>(basicPomNames.length + additionalNames.length);
-
-    for (String name : basicPomNames) {
-      map.put(name, null);
-    }
-    for (String name : additionalNames) {
-      map.put(name, null);
-    }
-    return map;
   }
 
 

@@ -17,6 +17,7 @@
 package org.apache.nifi.web.api;
 
 import java.net.URI;
+import java.io.File;
 import java.util.Collections;
 import java.util.Set;
 
@@ -52,8 +53,8 @@ import org.apache.nifi.cluster.manager.exception.UnknownNodeException;
 import org.apache.nifi.cluster.protocol.NodeIdentifier;
 import org.apache.nifi.controller.FlowController;
 import org.apache.nifi.nar.ExtensionMapping;
-import org.apache.nifi.nar.ext.MavenNarExtensionSpec;
-import org.apache.nifi.nar.ext.NarExtensionSpec;
+import org.apache.nifi.nar.ext.AbstractExternalRepository;
+import org.apache.nifi.nar.ext.BasicExtensionSpec;
 import org.apache.nifi.web.NiFiServiceFacade;
 import org.apache.nifi.web.Revision;
 import org.apache.nifi.web.api.dto.CounterDTO;
@@ -578,10 +579,16 @@ public class ControllerResource extends ApplicationResource {
             @ApiParam(value = "NarFile Location") @QueryParam("narURI") String narURI,
             @ApiParam(value = "GroupId") @QueryParam("groupId") String groupId,
             @ApiParam(value = "ArtifactId") @QueryParam("artifactId") String artifactId,
-            @ApiParam(value = "Version") @QueryParam("version") String version) {
+            @ApiParam(value = "Version") @QueryParam("version") String version,
+            @ApiParam(value = "Signature") @QueryParam("signatureString") String signatureString) {
         boolean wellformedGAV = true;
         URI narUri = null;
-        // ensure at-least a resource URI has been defined
+        // ensure resource is well specified.  Signature is mandatory, plus either GAV or narURI.
+        // ensure signatureString is non-empty
+        if (StringUtils.isEmpty(signatureString) || StringUtils.isBlank(signatureString)) {
+            throw new IllegalArgumentException(
+                    "Signature string must be specified.");
+        }
         if (!(StringUtils.isNotBlank(groupId) && StringUtils.isNotBlank(artifactId)
                 && StringUtils.isNotBlank(version))) {
             wellformedGAV = false;
@@ -612,10 +619,22 @@ public class ControllerResource extends ApplicationResource {
             return generateContinueResponse().build();
         }
 
+
+        // lookup and validate
+        final BasicExtensionSpec spec = AbstractExternalRepository.lookupExtensionBySignature(signatureString);
+        if (wellformedGAV ?
+                !(groupId.equals(spec.getGroupId()) && artifactId.equals(spec.getArtifactId()) &&
+                        version.equals(spec.getVersion())) :
+                !(new File(narUri).equals(spec.getExtensionPkg()))) {
+            throw new IllegalArgumentException(
+                    "Signature string did not match specified resource.");
+        }
+        if (!BasicExtensionSpec.NAR_PACKAGING.equals(spec.getPackaging())) {
+            throw new IllegalArgumentException(
+                    "Specified resource was not a NAR package.  This API can only be used to sideload NARs.");
+        }
+
         // sideload
-        final NarExtensionSpec spec = wellformedGAV
-                ? new MavenNarExtensionSpec(groupId, artifactId, version, NarExtensionSpec.NAR_PACKAGING, narUri)
-                : new NarExtensionSpec(groupId, artifactId, version, NarExtensionSpec.NAR_PACKAGING, narUri);
         serviceFacade.sideLoad(spec,
                 (ExtensionMapping) httpServletRequest.getServletContext().getAttribute("nifi-extension-mapping"));
         return clusterContext(generateOkResponse("Successfully Loaded: " + spec)).build();
